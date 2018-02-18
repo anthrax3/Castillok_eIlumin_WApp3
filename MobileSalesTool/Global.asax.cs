@@ -8,6 +8,8 @@ using System.Web.Optimization;
 using System.Web.Routing;
 using System.Web.Security;
 using System.Web.SessionState;
+using MobileSalesTool.DAL;
+using System.Data.Entity.Infrastructure.Interception;
 
 namespace MobileSalesTool
 {

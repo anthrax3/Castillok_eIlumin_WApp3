@@ -8,6 +8,8 @@ using System.Web;
 using System.Web.Mvc;
 using MobileSalesTool.DAL;
 using MobileSalesTool.Models;
+using PagedList;
+using System.Data.Entity.Infrastructure;
 
 namespace MobileSalesTool.Controllers
 {
@@ -16,9 +18,49 @@ namespace MobileSalesTool.Controllers
         private MobileSalesToolContext db = new MobileSalesToolContext();
 
         // GET: Employee
-        public ActionResult Index()
+        public ViewResult Index(string sortOrder, string currentFilter, string searchString, int? page)
+
         {
-            return View(db.Employees.ToList());
+            ViewBag.NameSortParm = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.DateSortParm = sortOrder == "Date" ? "date_desc" : "Date";
+
+            if (searchString != null)
+            {
+                page = 1;
+            }
+            else
+            {
+                searchString = currentFilter;
+            }
+
+            ViewBag.CurrentFilter = searchString;
+
+            var employees = from s in db.Employees
+                           select s;
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                employees = employees.Where(s => s.LastName.Contains(searchString)
+                                       || s.FirstMidName.Contains(searchString));
+            }
+            switch (sortOrder)
+            {
+                case "name_desc":
+                    employees = employees.OrderByDescending(s => s.LastName);
+                    break;
+                case "Date":
+                    employees = employees.OrderBy(s => s.EnrollmentDate);
+                    break;
+                case "date_desc":
+                    employees = employees.OrderByDescending(s => s.EnrollmentDate);
+                    break;
+                default:
+                    employees = employees.OrderBy(s => s.LastName);
+                    break;
+            }
+
+            int pageSize = 3;
+            int pageNumber = (page ?? 1);
+            return View(employees.ToPagedList(pageNumber, pageSize));
         }
 
         // GET: Employee/Details/5
@@ -58,7 +100,7 @@ namespace MobileSalesTool.Controllers
                     return RedirectToAction("Index");
                 }
             }
-            catch (DataException /* dex */)
+            catch (RetryLimitExceededException /* dex */)
             {
                 //Log the error (uncomment dex variable name and add a line here to write a log.
                 ModelState.AddModelError("", "Unable to save changes. Try again, and if the problem persists see your system administrator.");
@@ -101,7 +143,7 @@ namespace MobileSalesTool.Controllers
 
                     return RedirectToAction("Index");
                 }
-                catch (DataException /* dex */)
+                catch (RetryLimitExceededException /* dex */)
                 {
                     //Log the error (uncomment dex variable name and add a line here to write a log.
                     ModelState.AddModelError("", "Unable to save changes. Try again, and if the problem persists, see your system administrator.");
@@ -141,7 +183,7 @@ namespace MobileSalesTool.Controllers
                 db.Entry(employeeToDelete).State = EntityState.Deleted;
                 db.SaveChanges();
             }
-            catch (DataException/* dex */)
+            catch (RetryLimitExceededException /* dex */)
             {
                 //Log the error (uncomment dex variable name and add a line here to write a log.
                 return RedirectToAction("Delete", new { id = id, saveChangesError = true });
